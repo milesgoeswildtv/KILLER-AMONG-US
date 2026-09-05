@@ -1,0 +1,23 @@
+const $=id=>document.getElementById(id);
+const storeKey='kau.session.v1';
+let session=loadSession(),timer=null,lastVersion=-1;
+const apiBase=location.hostname.includes('github.io')?'':location.origin;
+
+function loadSession(){try{return JSON.parse(localStorage.getItem(storeKey)||'null')}catch{return null}}
+function saveSession(v){session=v;localStorage.setItem(storeKey,JSON.stringify(v))}
+function clearSession(){session=null;localStorage.removeItem(storeKey)}
+async function request(path,opts={}){const headers={'content-type':'application/json',...(opts.headers||{})};if(session?.playerToken)headers.authorization=`Bearer ${session.playerToken}`;const res=await fetch(`${apiBase}${path}`,{...opts,headers});const data=await res.json().catch(()=>({error:'Invalid server response'}));if(!res.ok)throw new Error(data.error||`Request failed (${res.status})`);return data}
+function err(e){$('error').textContent=e?.message||String(e)}
+
+async function createLobby(){try{err('');const name=$('createName').value.trim()||'Host';const data=await request('/api/lobby/create',{method:'POST',body:JSON.stringify({name})});saveSession({code:data.code,playerToken:data.playerToken,hostToken:data.hostToken,playerId:data.playerId});await refresh();beginPolling()}catch(e){err(e)}}
+async function joinLobby(){try{err('');const name=$('joinName').value.trim()||'Player',code=$('joinCode').value.trim().toUpperCase();if(code.length!==6)throw new Error('Enter the six-character lobby code.');const data=await request(`/api/lobby/${code}/join`,{method:'POST',body:JSON.stringify({name})});saveSession({code:data.code,playerToken:data.playerToken,playerId:data.playerId});await refresh();beginPolling()}catch(e){err(e)}}
+async function refresh(){if(!session)return;try{const data=await request(`/api/lobby/${session.code}/state`);render(data);$('connection').textContent='CONNECTED';if(data.version!==lastVersion)lastVersion=data.version}catch(e){$('connection').textContent='CONNECTION LOST';err(e)}}
+function render(data){$('entry').classList.add('hidden');$('room').classList.remove('hidden');$('code').textContent=data.code;$('status').textContent=data.status;$('count').textContent=`${data.players.length} / 8`;$('you').textContent=`You are ${data.private.name}${data.private.character?` · Character: ${data.private.character}`:''}.`;$('roster').innerHTML=data.players.map(p=>`<span class="${p.id===data.turnPlayerId&&data.status==='ACTIVE'?'active-player':''}">${p.name}${p.id===data.private.id?' · YOU':''}</span>`).join('');
+ const host=Boolean(session.hostToken);$('startBtn').classList.toggle('hidden',!host||data.status!=='LOBBY');$('startBtn').disabled=data.players.length<3;$('openPrototype').classList.toggle('hidden',data.status!=='ACTIVE');$('privatePreview').classList.toggle('hidden',data.status!=='ACTIVE');
+ if(data.status==='ACTIVE'){$('role').textContent=data.private.role;$('privateText').innerHTML=data.private.role==='KILLER'?`<p><b>YOU'RE THE KILLER.</b></p><p>You know WHO: <b>${data.private.character}</b>. You still do not know WHERE or WITH WHAT.</p><p>Your private hand contains ${data.private.hand.length} cards.</p>`:`<p><b>FIND THE KILLER.</b></p><p>Your character is <b>${data.private.character}</b>. Determine WHO + WHERE + WITH WHAT.</p><p>Your private hand contains ${data.private.hand.length} cards.</p>`}}
+async function start(){try{await request(`/api/lobby/${session.code}/start`,{method:'POST',headers:{'x-host-token':session.hostToken},body:'{}'});await refresh()}catch(e){err(e)}}
+async function leave(){try{if(session)await request(`/api/lobby/${session.code}/leave`,{method:'POST',body:'{}'})}catch{}clearSession();stopPolling();location.reload()}
+function beginPolling(){stopPolling();timer=setInterval(refresh,1000)}function stopPolling(){if(timer)clearInterval(timer);timer=null}
+
+$('createBtn').onclick=createLobby;$('joinBtn').onclick=joinLobby;$('startBtn').onclick=start;$('leaveBtn').onclick=leave;$('openPrototype').onclick=()=>location.href='index.html';$('joinCode').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''));
+if(session){refresh();beginPolling()}
