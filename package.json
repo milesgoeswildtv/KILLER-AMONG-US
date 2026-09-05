@@ -1,9 +1,10 @@
 {
   "name": "killer-among-us",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
+    "build": "echo \"No build step required for KILLER AMONG US\"",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
