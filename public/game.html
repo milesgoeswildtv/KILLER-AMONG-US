@@ -4,9 +4,11 @@
 <div class="card role"><small>PRIVATE ROLE</small><h2 id="roleTitle">—</h2><p id="roleText"></p></div>
 <div class="card"><div class="card-head"><h3>YOUR STATUS</h3><b id="location">—</b></div><p id="turnText"></p><div id="timer" class="countdown"></div><div class="actions"><button id="rollBtn">🎲 ROLL MOVEMENT</button><button id="searchBtn">🔎 SEARCH FOR EVIDENCE</button><button id="doorsBtn">🚪 FLIP SECURITY</button><button id="passagesBtn">◈ FLIP PASSAGES</button><button id="accuseBtn" class="danger">⚠ ACCUSE</button><button id="endBtn" class="secondary">END TURN</button></div><div id="result" class="result"></div></div>
 <div id="conferenceCard" class="card hidden"><div class="card-head"><h3>🚨 CASE CONFERENCE</h3><b id="voteProgress"></b></div><p id="conferenceText"></p><div id="voteTargets" class="vote-grid"></div></div>
+<div class="card notebook-card"><div class="card-head"><h3>DETECTIVE NOTEBOOK</h3><b>PRIVATE</b></div><p class="notebook-help">Tap an entry to cycle: UNKNOWN → CLEARED → SUSPECT.</p><div id="notebook"></div></div>
 <div class="card"><div class="card-head"><h3>PRIVATE HAND</h3><b id="handCount"></b></div><div id="hand"></div></div>
 <div class="card"><div class="card-head"><h3>PRIVATE EVIDENCE</h3><b id="evidenceCount"></b></div><div id="evidence"></div></div>
 <div class="card"><div class="card-head"><h3>PUBLIC CASE BOARD</h3><b id="publicCount"></b></div><div id="publicBoard"></div></div>
 </aside></main>
 <div id="accuseModal" class="modal hidden"><div class="modal-card"><small>FINAL THEORY</small><h2 id="accuseTitle">MAKE AN ACCUSATION</h2><label>WHO?</label><select id="accuseSuspect"></select><label>WITH WHAT?</label><select id="accuseWeapon"></select><label>WHERE?</label><select id="accuseRoom"></select><div class="actions"><button id="submitAccuse" class="danger">COMMIT</button><button id="cancelAccuse" class="secondary">CANCEL</button></div></div></div>
+<div id="finishedModal" class="modal hidden"><div class="modal-card finish-card"><small>CASE CLOSED</small><h2 id="finishTitle">THE HOUSE HAS A WINNER.</h2><p id="finishText"></p><div class="actions"><button id="returnLobby">RETURN TO LOBBY</button></div></div></div>
 <script src="game.js"></script></body></html>
