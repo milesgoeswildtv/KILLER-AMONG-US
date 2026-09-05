@@ -1,0 +1,19 @@
+.match-dock{display:none}
+@media(max-width:850px){
+  body{padding-bottom:68px}
+  .match-dock{position:fixed;left:8px;right:8px;bottom:8px;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:6px;background:#0c0812ef;border:1px solid #442453;border-radius:16px;box-shadow:0 10px 45px #000;backdrop-filter:blur(14px)}
+  .match-dock button{padding:10px 4px;border-radius:10px;background:#1a1120;color:#9f8aaa;font-size:8px;letter-spacing:.08em}
+  .match-dock button.active{background:#9d2ec5;color:#fff;box-shadow:0 0 18px #b63fe044}
+  .match-dock button.attention{animation:dockPulse .7s ease-in-out 4;background:#6e244f;color:#fff}
+  body.intel-open .board-wrap{opacity:.3;filter:blur(1px);pointer-events:none}
+  .mobile-panel-hidden{display:none!important}
+  .mobile-panel-open{display:block!important;position:relative;z-index:25;margin:8px 0 84px!important;border-color:#8b3ca4!important;box-shadow:0 22px 70px #000}
+  aside{display:block}
+  aside>.card:not(.mobile-panel-open):not(.mobile-panel-hidden):not(.role){display:none}
+  aside>.role{display:block}
+  body.intel-open aside>.role{display:none}
+  body.intel-open main{display:block}
+  body.intel-open aside{position:relative;z-index:20}
+  .mobile-panel-open:before{content:'PRIVATE MATCH PANEL';display:block;margin:-2px 0 10px;color:#9f83aa;font-size:7px;letter-spacing:.18em;font-weight:900}
+}
+@keyframes dockPulse{50%{transform:translateY(-3px);box-shadow:0 0 22px #e04eb477}}
