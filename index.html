@@ -1,16 +1,12 @@
 <!doctype html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KILLER AMONG US — Full Tilt</title><link rel="stylesheet" href="style.css"></head>
-<body>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KILLER AMONG US — Full Tilt</title><link rel="stylesheet" href="style.css"></head><body>
 <header><div><small>FULL TILT PRESENTS</small><h1>KILLER <span>AMONG US</span></h1></div><div class="status"><b id="round">ROUND 1</b><span id="conference">CASE CONFERENCE IN 4</span></div></header>
-<main>
-<section class="board-wrap"><div class="board" id="board"></div></section>
-<aside>
-<div class="card role"><small>PRIVATE ROLE</small><h2 id="roleTitle">INVESTIGATOR</h2><p id="roleText">Find WHO killed them, WHERE it happened, and WITH WHAT.</p></div>
-<div class="card"><div class="card-head"><h3>YOUR TURN</h3><b id="location">CASINO FLOOR</b></div><p id="turnMessage">Choose an adjacent room to move, or investigate your current room.</p><div class="actions"><button id="searchBtn">🔎 SEARCH FOR EVIDENCE</button><button id="flipBtn" class="hidden">⚡ FLIP SWITCH</button><button id="endBtn" class="secondary">END TURN</button></div><div id="rollResult" class="result"></div></div>
-<div class="card"><div class="card-head"><h3>PRIVATE NOTEBOOK</h3><b id="evidenceCount">0 / 8</b></div><div id="notebook" class="empty">No evidence recovered yet.</div></div>
-<div class="card"><div class="card-head"><h3>PUBLIC CASE BOARD</h3><b id="publicCount">0 / 8</b></div><div id="caseBoard" class="empty">Nothing has entered the public record.</div></div>
-</aside>
-</main>
-<div id="modal" class="modal hidden"><div class="modal-card"><small>⚠ CASE CONFERENCE</small><h2>THE BUILDING GOES QUIET.</h2><p id="modalText"></p><button id="closeModal">CONTINUE INVESTIGATION</button></div></div>
+<main><section class="board-wrap"><div class="board" id="board"></div><div class="card"><div class="card-head"><h3>PLAYERS</h3><b id="turnOwner"></b></div><div id="players" class="players"></div></div></section><aside>
+<div class="card role"><small>PRIVATE ROLE — DEMO VIEW</small><h2 id="roleTitle"></h2><p id="roleText"></p></div>
+<div class="card"><div class="card-head"><h3>CURRENT TURN</h3><b id="location"></b></div><p id="turnMessage">Move, search, suggest, or use a room action.</p><div class="actions"><button id="searchBtn">🔎 SEARCH FOR EVIDENCE</button><button id="suggestBtn">🕵️ MAKE SUGGESTION</button><button id="flipBtn" class="hidden">⚡ FLIP SWITCH</button><button id="endBtn" class="secondary">END TURN</button></div><div id="rollResult" class="result"></div></div>
+<div class="card"><div class="card-head"><h3>PRIVATE HAND</h3><b id="handCount"></b></div><div id="hand"></div></div>
+<div class="card"><div class="card-head"><h3>PRIVATE NOTEBOOK</h3><b id="evidenceCount">0 / 8</b></div><div id="notebook" class="empty"></div></div>
+<div class="card"><div class="card-head"><h3>PUBLIC CASE BOARD</h3><b id="publicCount">0 / 8</b></div><div id="caseBoard" class="empty"></div></div></aside></main>
+<div id="modal" class="modal hidden"><div class="modal-card"><small id="modalEyebrow">⚠ CASE CONFERENCE</small><h2 id="modalTitle">THE BUILDING GOES QUIET.</h2><div id="modalText"></div><button id="closeModal">CONTINUE</button></div></div>
+<div id="suggestModal" class="modal hidden"><div class="modal-card"><small>PRIVATE DEDUCTION</small><h2>MAKE A SUGGESTION</h2><p>Your current room is automatically the suggested crime scene.</p><label>WHO?</label><select id="suspectSelect"></select><label>WITH WHAT?</label><select id="weaponSelect"></select><div class="actions"><button id="submitSuggestion">SUBMIT SUGGESTION</button><button id="cancelSuggestion" class="secondary">CANCEL</button></div></div></div>
 <script src="app.js"></script></body></html>
