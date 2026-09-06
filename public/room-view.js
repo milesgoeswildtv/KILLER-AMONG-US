@@ -4,9 +4,11 @@ const ROOM_ART={
   control:'/art/rooms/control-room.PNG',
   high:'/art/rooms/high-roller-room.PNG',
   office:'/art/rooms/back-office.PNG',
+  casino:'/art/rooms/casino-floor.PNG',
   after:'/art/rooms/afterhours.PNG',
   workshop:'/art/rooms/workshop.PNG',
-  kitchen:'/art/rooms/kitchen.PNG'
+  kitchen:'/art/rooms/kitchen.PNG',
+  back:'/art/rooms/back-room.PNG'
 };
 const roomArtReady=new Map();
 let roomViewOpen=false,roomViewRoom=null,roomViewLastRoom=null,roomViewDismissed=null,roomViewTimer=null;
@@ -43,7 +45,7 @@ function openRoomView(id,automatic=false){
   roomViewTimer=setTimeout(()=>{rv.classList.remove('hidden');requestAnimationFrame(()=>rv.classList.add('shown'));setTimeout(()=>setHQTransition(false),420)},automatic?170:60);syncRoomView();return true;
 }
 function closeRoomView(){
-  const rv=document.getElementById('roomView');if(!rv)return;clearTimeout(roomViewTimer);roomViewDismissed=roomViewRoom;rv.classList.remove('shown');roomViewOpen=false;roomViewTimer=setTimeout(()=>rv.classList.add('hidden'),260);if(typeof centerOnPosition==='function')setTimeout(()=>centerOnPosition(state?.private?.position),300);syncRoomViewLauncher();
+  const rv=document.getElementById('roomView');if(!rv)return;clearTimeout(roomViewTimer);setHQTransition(false);roomViewDismissed=roomViewRoom;rv.classList.remove('shown');roomViewOpen=false;roomViewTimer=setTimeout(()=>rv.classList.add('hidden'),260);if(typeof centerOnPosition==='function')setTimeout(()=>centerOnPosition(state?.private?.position),300);syncRoomViewLauncher();
 }
 function syncRoomViewLauncher(){
   const b=document.getElementById('roomViewEnter');if(!b||!state?.private)return;const room=state.private.room,has=!!artForRoom(room);b.textContent=room?`ENTER ${roomName(room)}`:'ENTER ROOM VIEW';b.classList.toggle('hidden',roomViewOpen||!room||!has);
