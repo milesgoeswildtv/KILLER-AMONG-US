@@ -1,0 +1,14 @@
+/* Approved Headquarters master artwork is the visual board. The 31x31 grid remains the invisible mechanics layer. */
+.board.clue-board.open-floor-board{background:#09070c!important;border-color:#3e2548!important;box-shadow:inset 0 0 80px #0008,0 24px 80px #0008!important}
+.board.clue-board.open-floor-board:before{content:'';position:absolute;z-index:0;inset:12px;background:url('/art/rooms/headquarters-master.PNG') center/100% 100% no-repeat;pointer-events:none}
+.floor-layer{background:transparent!important;z-index:2!important}
+.floor-tile{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.floor-tile:nth-child(2n),.floor-tile.central-plaza,.floor-tile.main-axis,.floor-tile.main-axis.central-plaza{background:transparent!important;border-color:transparent!important}
+.floor-tile.reachable{background:rgba(149,64,169,.16)!important;border-color:rgba(237,188,247,.16)!important;box-shadow:inset 0 0 7px rgba(215,135,227,.13)!important}
+.floor-tile.reachable:hover,.floor-tile.route-preview{background:rgba(125,54,140,.52)!important;border-color:#efc7f4!important;box-shadow:0 0 10px #d865e899,inset 0 0 8px #fff3!important}
+.floor-tile.current{background:rgba(88,36,97,.22)!important;border-color:rgba(233,196,239,.4)!important}
+.board.clue-board .room{background:transparent!important;border-color:transparent!important;box-shadow:none!important;outline:none}
+.board.clue-board .room:before,.board.clue-board .room:after,.board.clue-board .room-scene,.board.clue-board .room h2,.board.clue-board .room p,.board.clue-board .room-kicker,.board.clue-board .passage{display:none!important}
+.board.clue-board .room.room-destination{background:rgba(176,78,197,.10)!important;outline:2px solid rgba(225,151,242,.55)!important;box-shadow:0 0 22px #c654ed33,inset 0 0 22px #e9b8ff10!important}
+.board.clue-board .room.current{background:rgba(176,78,197,.08)!important;outline:2px solid rgba(240,184,255,.5)!important;box-shadow:0 0 30px #cf63ee55!important}
+.room-piece-stack{z-index:35!important}
