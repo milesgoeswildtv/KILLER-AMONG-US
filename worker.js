@@ -14,12 +14,22 @@ const code=()=>{const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',b=new Uint8Array(6);c
 async function getBody(r){try{return await r.json()}catch{return{}}}
 const clean=v=>String(v||'Player').replace(/[<>]/g,'').trim().slice(0,24)||'Player';
 const floorId=(r,c)=>`floor:${r}:${c}`;
-// Rooms sit off the outside walls so every room can have two genuinely opposite entrances.
 const ROOM_LAYOUT={vault:{r1:3,r2:7,c1:3,c2:7},control:{r1:3,r2:7,c1:14,c2:18},high:{r1:3,r2:7,c1:25,c2:29},office:{r1:14,r2:18,c1:3,c2:7},casino:{r1:14,r2:18,c1:14,c2:18},after:{r1:14,r2:18,c1:25,c2:29},workshop:{r1:25,r2:29,c1:3,c2:7},kitchen:{r1:25,r2:29,c1:14,c2:18},back:{r1:25,r2:29,c1:25,c2:29}};
-// A and B are opposite thresholds. Exactly one side is live building-wide at a time.
-const ROOM_DOORS={vault:{A:[2,5],B:[8,5]},control:{A:[2,16],B:[8,16]},high:{A:[2,27],B:[8,27]},office:{A:[16,2],B:[16,8]},casino:{A:[16,13],B:[16,19]},after:{A:[16,24],B:[16,30]},workshop:{A:[24,5],B:[30,5]},kitchen:{A:[24,16],B:[30,16]},back:{A:[24,27],B:[30,27]}};
+// A/B are the two usable interior-facing entrances for each peripheral room.
+// Control Room flips which side is live building-wide. The central lobby is always open.
+const ROOM_DOORS={
+ vault:{A:[5,8],B:[8,5]},
+ control:{A:[5,19],B:[8,16]},
+ high:{A:[5,24],B:[8,27]},
+ office:{A:[13,5],B:[19,5]},
+ after:{A:[16,24],B:[19,27]},
+ workshop:{A:[27,8],B:[24,5]},
+ kitchen:{A:[24,16],B:[27,13]},
+ back:{A:[24,27],B:[27,24]}
+};
+const CASINO_DOORS=[[13,16],[16,13],[16,19],[19,16]];
 function insideRoom(r,c){for(const[id,x]of Object.entries(ROOM_LAYOUT))if(r>=x.r1&&r<=x.r2&&c>=x.c1&&c<=x.c2)return id;return null}
-function makeBoard(){const graph=Object.fromEntries(ROOM_IDS.map(r=>[r,[]])),tiles={};for(let r=1;r<=BOARD_SIZE;r++)for(let c=1;c<=BOARD_SIZE;c++){if(insideRoom(r,c))continue;const t=floorId(r,c);tiles[t]={id:t,row:r,col:c};graph[t]=[]}for(const t of Object.keys(tiles)){const{row:r,col:c}=tiles[t];for(const[dr,dc]of[[1,0],[-1,0],[0,1],[0,-1]]){const n=floorId(r+dr,c+dc);if(tiles[n])graph[t].push(n)}}for(const[room,sides]of Object.entries(ROOM_DOORS))for(const[r,c]of Object.values(sides)){const t=floorId(r,c);if(!tiles[t])continue;graph[room].push(t);graph[t].push(room)}return{graph,tiles,size:BOARD_SIZE,rooms:ROOM_LAYOUT,doors:ROOM_DOORS}}
+function makeBoard(){const graph=Object.fromEntries(ROOM_IDS.map(r=>[r,[]])),tiles={};for(let r=1;r<=BOARD_SIZE;r++)for(let c=1;c<=BOARD_SIZE;c++){if(insideRoom(r,c))continue;const t=floorId(r,c);tiles[t]={id:t,row:r,col:c};graph[t]=[]}for(const t of Object.keys(tiles)){const{row:r,col:c}=tiles[t];for(const[dr,dc]of[[1,0],[-1,0],[0,1],[0,-1]]){const n=floorId(r+dr,c+dc);if(tiles[n])graph[t].push(n)}}for(const[room,sides]of Object.entries(ROOM_DOORS))for(const[r,c]of Object.values(sides)){const t=floorId(r,c);if(!tiles[t])continue;graph[room].push(t);graph[t].push(room)}for(const[r,c]of CASINO_DOORS){const t=floorId(r,c);if(!tiles[t])continue;graph.casino.push(t);graph[t].push('casino')}return{graph,tiles,size:BOARD_SIZE,rooms:ROOM_LAYOUT,doors:{...ROOM_DOORS,casino:{}}}}
 const BOARD=makeBoard(),isRoom=x=>ROOM_IDS.includes(x),isFloor=x=>!!BOARD.tiles[x];
 const START_POSITIONS=[[10,16],[10,22],[16,22],[22,22],[22,16],[22,10],[16,10],[10,10]].map(([r,c])=>floorId(r,c));
 export default{async fetch(r,env){if(r.method==='OPTIONS')return json({ok:true});const u=new URL(r.url);if(u.pathname==='/api/health')return json({ok:true,game:'KILLER AMONG US',multiplayer:'fog-door-routing'});if(u.pathname==='/api/lobby/create'&&r.method==='POST'){const b=await getBody(r),c=code(),s=env.MATCHES.get(env.MATCHES.idFromName(c));return s.fetch(new Request(`${u.origin}/create`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:c,name:b.name})}))}const m=u.pathname.match(/^\/api\/lobby\/([A-Z0-9]{6})(?:\/(join|state|start|leave|roll|move|search|switch|end|accuse|vote|testify))?$/i);if(m){const s=env.MATCHES.get(env.MATCHES.idFromName(m[1].toUpperCase()));return s.fetch(new Request(`${u.origin}/${m[2]||'state'}`,{method:r.method,headers:r.headers,body:['GET','HEAD'].includes(r.method)?undefined:r.body}))}if(env.ASSETS)return env.ASSETS.fetch(r);return new Response('Not found',{status:404})}};
@@ -31,9 +41,9 @@ token(r){const x=r.headers.get('authorization')||'';return x.toLowerCase().start
 player(t){return this.data?.players.find(p=>p.token===t)}
 normalizePlayer(p){if(!p.position||(!isRoom(p.position)&&!isFloor(p.position)))p.position=p.room&&isRoom(p.room)?p.room:START_POSITIONS[p.seat%START_POSITIONS.length];p.room=isRoom(p.position)?p.position:null}
 conferenceActive(){return['DISCUSSION','VOTING','TESTIMONY'].includes(this.data?.phase)}
-activeDoor(room){const d=ROOM_DOORS[room]?.[this.data.doorSide||'A'];return d?floorId(d[0],d[1]):null}
+activeDoor(room){if(room==='casino')return null;const d=ROOM_DOORS[room]?.[this.data.doorSide||'A'];return d?floorId(d[0],d[1]):null}
 physicalNeighbors(pos){return[...(BOARD.graph[pos]||[])]}
-neighbors(pos){let out=this.physicalNeighbors(pos);if(isRoom(pos)){const door=this.activeDoor(pos);out=out.filter(x=>x===door)}else if(isFloor(pos)){out=out.filter(next=>!isRoom(next)||this.activeDoor(next)===pos)}if(this.data.passages){if(pos==='vault')out.push('back');if(pos==='back')out.push('vault');if(pos==='high')out.push('workshop');if(pos==='workshop')out.push('high')}return[...new Set(out)]}
+neighbors(pos){let out=this.physicalNeighbors(pos);if(isRoom(pos)){if(pos!=='casino'){const door=this.activeDoor(pos);out=out.filter(x=>x===door)}}else if(isFloor(pos)){out=out.filter(next=>!isRoom(next)||next==='casino'||this.activeDoor(next)===pos)}if(this.data.passages){if(pos==='vault')out.push('back');if(pos==='back')out.push('vault');if(pos==='high')out.push('workshop');if(pos==='workshop')out.push('high')}return[...new Set(out)]}
 visibilityDistance(start,target,max=FOG_RADIUS){if(start===target)return 0;const q=[[start,0]],seen=new Set([start]);while(q.length){const[n,d]=q.shift();if(d>=max)continue;for(const x of this.neighbors(n)){if(isRoom(n)&&isRoom(x)&&n!==x)continue;if(x===target)return d+1;if(seen.has(x))continue;seen.add(x);q.push([x,d+1])}}return 999}
 canSee(viewer,target){this.normalizePlayer(viewer);this.normalizePlayer(target);if(viewer.id===target.id)return true;if(this.conferenceActive())return true;if(viewer.room&&target.room===viewer.room)return true;if(viewer.room&&target.room&&viewer.room!==target.room)return false;return this.visibilityDistance(viewer.position,target.position,FOG_RADIUS)<=FOG_RADIUS}
 pubFor(viewer,target){this.normalizePlayer(target);const visible=this.canSee(viewer,target);return{id:target.id,name:target.name,seat:target.seat,character:target.character||null,room:visible?target.room:null,position:visible?target.position:null,visible,connected:target.bot?true:Date.now()-(target.lastSeen||0)<15000,revealedHand:!!target.revealedHand,bot:!!target.bot}}
