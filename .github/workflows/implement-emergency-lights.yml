@@ -1,0 +1,78 @@
+name: Implement Emergency Lights
+on:
+  push:
+    paths:
+      - '.github/workflows/implement-emergency-lights.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Replace Back Office records with emergency lights
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('worker.js')
+          s=p.read_text()
+
+          s=s.replace("const CASINO_DOORS=[[13,16],[16,13],[16,19],[19,16]];", "const CASINO_DOORS=[[13,16],[16,13],[16,19],[19,16]];\n// Emergency floodlights cover the four choke corridors marked on the master HQ art.\n// One wing can be active at a time. Rectangles are inclusive grid coordinates: r1,r2,c1,c2.\nconst LIGHT_ZONES={WEST:[[8,13,8,13],[19,24,8,13]],EAST:[[8,13,19,24],[19,24,19,24]]};\nfunction tileInLightSide(pos,side){if(!side||!isFloor(pos))return false;const t=BOARD.tiles[pos];return (LIGHT_ZONES[side]||[]).some(([r1,r2,c1,c2])=>t.row>=r1&&t.row<=r2&&t.col>=c1&&t.col<=c2)}")
+
+          s=s.replace("if(!this.data.roomVisits)this.data.roomVisits=[]", "if(!this.data.lights)this.data.lights={side:null,turnsRemaining:0};if(!this.data.lightPulse)this.data.lightPulse=null")
+
+          s=s.replace("if(viewer.room&&target.room&&viewer.room!==target.room)return false;return this.visibilityDistance(viewer.position,target.position,FOG_RADIUS)<=FOG_RADIUS", "if(tileInLightSide(target.position,this.data.lights?.side))return true;if(viewer.room&&target.room&&viewer.room!==target.room)return false;return this.visibilityDistance(viewer.position,target.position,FOG_RADIUS)<=FOG_RADIUS")
+
+          old="recordVisit(p,room){if(!room||room==='casino')return;this.data.roomVisits=this.data.roomVisits||[];this.data.roomVisits.push({playerId:p.id,room,round:this.data.round,at:Date.now()});this.data.roomVisits=this.data.roomVisits.slice(-120)}\n"
+          s=s.replace(old,'')
+          s=s.replace(";if(p.room)this.recordVisit(p,p.room)","")
+          s=s.replace(";if(p.room)this.recordVisit(p,p.room)","")
+          s=s.replace(",roomVisits:[]",",lights:{side:null,turnsRemaining:0},lightPulse:null")
+          s=s.replace(";this.data.roomVisits=[];this.data.doorSide='A'", ";this.data.lights={side:null,turnsRemaining:0};this.data.lightPulse=null;this.data.doorSide='A'")
+
+          s=s.replace("join|state|start|leave|roll|move|search|switch|records|end|accuse|vote|testify", "join|state|start|leave|roll|move|search|switch|lights|end|accuse|vote|testify")
+          s=s.replace("if(a==='records')return this.records(p,await getBody(r));", "if(a==='lights')return this.lights(p,await getBody(r));")
+
+          old_advance="advanceOne(){this.data.turn=(this.data.turn+1)%this.data.players.length;const wrapped=this.data.turn===0;this.data.phase='START';this.data.reachable={};this.data.acted=false;if(wrapped){this.data.round++;if((this.data.round-1)%6===0){this.startConference();return'CONFERENCE'}}return wrapped?'WRAPPED':'NEXT'}"
+          new_advance="advanceOne(){if(this.data.lights?.side){this.data.lights.turnsRemaining=Math.max(0,(this.data.lights.turnsRemaining||0)-1);if(this.data.lights.turnsRemaining===0){const side=this.data.lights.side;this.data.lights={side:null,turnsRemaining:0};this.event(`💡 ${side} WING EMERGENCY LIGHTS SHUT OFF.`,'SYSTEM')}}this.data.turn=(this.data.turn+1)%this.data.players.length;const wrapped=this.data.turn===0;this.data.phase='START';this.data.reachable={};this.data.acted=false;if(wrapped){this.data.round++;if((this.data.round-1)%6===0){this.startConference();return'CONFERENCE'}}return wrapped?'WRAPPED':'NEXT'}"
+          if old_advance not in s: raise SystemExit('advanceOne block not found')
+          s=s.replace(old_advance,new_advance)
+
+          old_move="async move(p,b){const target=String(b.position||b.room||'');if(this.data.phase!=='MOVE'||!this.data.reachable[target])return json({error:'Space not reachable'},409);if(isFloor(target)&&this.data.players.some(x=>x.id!==p.id&&x.position===target))return json({error:'That floor tile is occupied'},409);const path=this.data.reachable[target];p.position=target;p.room=isRoom(target)?target:null;this.data.phase='ROOM';this.data.reachable={};this.touch();await this.save();return json({ok:true,path,position:target,state:this.view(p)})}"
+          new_move="async move(p,b){const target=String(b.position||b.room||'');if(this.data.phase!=='MOVE'||!this.data.reachable[target])return json({error:'Space not reachable'},409);if(isFloor(target)&&this.data.players.some(x=>x.id!==p.id&&x.position===target))return json({error:'That floor tile is occupied'},409);const path=this.data.reachable[target],lit=(this.data.lights?.side?path.filter(x=>tileInLightSide(x,this.data.lights.side)):[]);p.position=target;p.room=isRoom(target)?target:null;if(lit.length)this.data.lightPulse={playerId:p.id,name:p.name,side:this.data.lights.side,tiles:lit,at:Date.now()};this.data.phase='ROOM';this.data.reachable={};this.touch();await this.save();return json({ok:true,path,position:target,lightExposure:lit,state:this.view(p)})}"
+          if old_move not in s: raise SystemExit('move block not found')
+          s=s.replace(old_move,new_move)
+
+          start=s.find("async records(p,b){")
+          end=s.find("\nasync accuse(p,b){",start)
+          if start<0 or end<0: raise SystemExit('records method not found')
+          lights="async lights(p,b){if(p.room!=='office'||this.data.phase==='MOVE'||this.data.acted)return json({error:'Cannot use emergency lighting now'},409);const side=String(b.side||'').toUpperCase();if(!['WEST','EAST'].includes(side))return json({error:'Choose WEST or EAST wing'},400);const n=d6(),success=n===1||n===6;this.data.acted=true;if(success){this.data.lights={side,turnsRemaining:this.data.players.length+1};this.event(`💡 ${side} WING EMERGENCY LIGHTS ACTIVATED.`,'SYSTEM')}else this.touch();await this.save();return json({ok:true,roll:n,success,side:success?side:null,privateMessage:success?`${side} WING FLOODLIGHTS ONLINE — one full round.`:'FAILED. Nobody else knows you tried.',state:this.view(p)})}"
+          s=s[:start]+lights+s[end:]
+
+          old_view="passages:this.data.passages,reachable:this.data.reachable"
+          new_view="passages:this.data.passages,lights:this.data.lights||{side:null,turnsRemaining:0},lightPulse:this.data.lightPulse&&Date.now()-this.data.lightPulse.at<6000?this.data.lightPulse:null,reachable:this.data.reachable"
+          if old_view not in s: raise SystemExit('view insertion point not found')
+          s=s.replace(old_view,new_view)
+          s=s.replace("doors:BOARD.doors,startPositions:START_POSITIONS", "doors:BOARD.doors,lightZones:LIGHT_ZONES,startPositions:START_POSITIONS")
+
+          checks=["LIGHT_ZONES", "async lights(p,b)", "a==='lights'", "lightPulse", "tileInLightSide(target.position", "turnsRemaining:this.data.players.length+1"]
+          for c in checks:
+              if c not in s: raise SystemExit('missing '+c)
+          if "async records(p,b)" in s or "a==='records'" in s: raise SystemExit('records mechanic still present')
+          p.write_text(s)
+          PY
+      - name: Commit worker changes
+        run: |
+          if git diff --quiet -- worker.js; then
+            echo "No worker changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker.js
+          git commit -m "Replace Back Office records with emergency lights"
+          git push
