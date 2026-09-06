@@ -1,0 +1,43 @@
+name: Add Back Office records mechanic
+on:
+  push:
+    paths:
+      - '.github/workflows/add-back-office-records.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch worker
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const p='worker.js';
+          let s=fs.readFileSync(p,'utf8');
+          s=s.replace('(join|state|start|leave|roll|move|search|switch|end|accuse|vote|testify)', '(join|state|start|leave|roll|move|search|switch|records|end|accuse|vote|testify)');
+          s=s.replace("if(a==='switch')return this.flip(p,await getBody(r));if(a==='accuse')", "if(a==='switch')return this.flip(p,await getBody(r));if(a==='records')return this.records(p,await getBody(r));if(a==='accuse')");
+          s=s.replace("touch(){this.data.version=(this.data.version||0)+1}\nreachable", "touch(){this.data.version=(this.data.version||0)+1}\nrecordVisit(p,room){if(!room||room==='casino')return;this.data.roomVisits=this.data.roomVisits||[];this.data.roomVisits.push({playerId:p.id,room,round:this.data.round,at:Date.now()});this.data.roomVisits=this.data.roomVisits.slice(-120)}\nreachable");
+          s=s.replace("async load(){if(!this.data)this.data=await this.state.storage.get('match')||null;if(this.data){if(!this.data.doorSide)this.data.doorSide='A';if(this.data.passages==null)this.data.passages=true}", "async load(){if(!this.data)this.data=await this.state.storage.get('match')||null;if(this.data){if(!this.data.doorSide)this.data.doorSide='A';if(this.data.passages==null)this.data.passages=true;if(!this.data.roomVisits)this.data.roomVisits=[]}");
+          s=s.replace("conference:null};this.event('Lobby created.'", "conference:null,roomVisits:[]};this.event('Lobby created.'");
+          s=s.replace("this.data.publicHands=[];this.data.doorSide='A';", "this.data.publicHands=[];this.data.roomVisits=[];this.data.doorSide='A';");
+          s=s.replace("if(target){p.position=target;p.room=isRoom(target)?target:null}this.touch();", "if(target){p.position=target;p.room=isRoom(target)?target:null;if(p.room)this.recordVisit(p,p.room)}this.touch();");
+          s=s.replace("p.position=target;p.room=isRoom(target)?target:null;this.data.phase='ROOM';", "p.position=target;p.room=isRoom(target)?target:null;if(p.room)this.recordVisit(p,p.room);this.data.phase='ROOM';");
+          const marker="async accuse(p,b){";
+          if(!s.includes('async records(p,b){')){
+            const method=`async records(p,b){if(p.room!=='office'||this.data.phase==='MOVE'||this.data.acted)return json({error:'Cannot access Back Office records now'},409);const type=b.type==='access'?'access':'trace',n=d6(),success=n===1||n===6;this.data.acted=true;let record=null;if(success&&type==='trace'){const clue=String(b.clue||'');if(!this.data.publicClues.includes(clue))return json({error:'Choose evidence already on the public Case Board'},400);const hit=Object.entries(this.data.clueMap||{}).find(([,text])=>text===clue);record=hit?{type:'TRACE',clue,room:hit[0],roomName:ROOM_NAMES[hit[0]]}:null}else if(success){const room=String(b.room||'');if(!SEARCH_ROOM_IDS.includes(room))return json({error:'Choose a searchable room'},400);const visits=[...(this.data.roomVisits||[])].reverse();const hit=visits.find(v=>v.room===room);if(hit){const who=this.data.players.find(x=>x.id===hit.playerId);record={type:'ACCESS',room,roomName:ROOM_NAMES[room],player:who?.name||'UNKNOWN',round:hit.round}}else record={type:'ACCESS',room,roomName:ROOM_NAMES[room],player:null,round:null}}this.touch();await this.save();return json({ok:true,roll:n,success,record,privateMessage:success?(record?.type==='TRACE'?('TRACE COMPLETE — SOURCE: '+record.roomName):record?.player?('ACCESS LOG — '+record.player+' entered '+record.roomName+' in Round '+record.round):('ACCESS LOG — no recorded entry for '+record?.roomName)):'FAILED. Nobody else knows you accessed the records.',state:this.view(p)})}\n`;
+            s=s.replace(marker,method+marker);
+          }
+          fs.writeFileSync(p,s);
+          NODE
+      - name: Commit patch
+        run: |
+          git config user.name "Full Tilt Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add worker.js
+          git commit -m "Add private Back Office records mechanic"
+          git push
