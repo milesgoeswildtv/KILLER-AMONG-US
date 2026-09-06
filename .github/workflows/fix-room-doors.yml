@@ -1,0 +1,37 @@
+name: Fix room doorway routing
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-room-doors.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch room doors
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const p='worker.js';
+          let s=fs.readFileSync(p,'utf8');
+          const old="// Rooms sit off the outside walls so every room can have two genuinely opposite entrances.\nconst ROOM_LAYOUT={vault:{r1:3,r2:7,c1:3,c2:7},control:{r1:3,r2:7,c1:14,c2:18},high:{r1:3,r2:7,c1:25,c2:29},office:{r1:14,r2:18,c1:3,c2:7},casino:{r1:14,r2:18,c1:14,c2:18},after:{r1:14,r2:18,c1:25,c2:29},workshop:{r1:25,r2:29,c1:3,c2:7},kitchen:{r1:25,r2:29,c1:14,c2:18},back:{r1:25,r2:29,c1:25,c2:29}};\n// A and B are opposite thresholds. Exactly one side is live building-wide at a time.\nconst ROOM_DOORS={vault:{A:[2,5],B:[8,5]},control:{A:[2,16],B:[8,16]},high:{A:[2,27],B:[8,27]},office:{A:[16,2],B:[16,8]},casino:{A:[16,13],B:[16,19]},after:{A:[16,24],B:[16,30]},workshop:{A:[24,5],B:[30,5]},kitchen:{A:[24,16],B:[30,16]},back:{A:[24,27],B:[30,27]}};";
+          const next="// Peripheral rooms expose two reachable thresholds facing the Headquarters interior.\nconst ROOM_LAYOUT={vault:{r1:3,r2:7,c1:3,c2:7},control:{r1:3,r2:7,c1:14,c2:18},high:{r1:3,r2:7,c1:25,c2:29},office:{r1:14,r2:18,c1:3,c2:7},casino:{r1:14,r2:18,c1:14,c2:18},after:{r1:14,r2:18,c1:25,c2:29},workshop:{r1:25,r2:29,c1:3,c2:7},kitchen:{r1:25,r2:29,c1:14,c2:18},back:{r1:25,r2:29,c1:25,c2:29}};\n// A/B are routing states, not compass directions. One threshold per peripheral room is open building-wide.\n// Vault E/S; Control E/S; High W/S; Office N/S; After W/S; Workshop E/N; Kitchen N/W; Back N/W.\n// Casino is the open central lobby and is not affected by door routing.\nconst ROOM_DOORS={vault:{A:[5,8],B:[8,5]},control:{A:[5,19],B:[8,16]},high:{A:[5,24],B:[8,27]},office:{A:[13,5],B:[19,5]},casino:{A:[16,13],B:[16,19]},after:{A:[16,24],B:[19,27]},workshop:{A:[27,8],B:[24,5]},kitchen:{A:[24,16],B:[27,13]},back:{A:[24,27],B:[27,24]}};";
+          if(!s.includes(old)) throw new Error('Expected old room layout block not found');
+          s=s.replace(old,next);
+          // Central lobby must remain open regardless of A/B routing.
+          s=s.replace("activeDoor(room){const d=ROOM_DOORS[room]?.[this.data.doorSide||'A'];return d?floorId(d[0],d[1]):null}","activeDoor(room){if(room==='casino')return null;const d=ROOM_DOORS[room]?.[this.data.doorSide||'A'];return d?floorId(d[0],d[1]):null}");
+          s=s.replace("neighbors(pos){let out=this.physicalNeighbors(pos);if(isRoom(pos)){const door=this.activeDoor(pos);out=out.filter(x=>x===door)}else if(isFloor(pos)){out=out.filter(next=>!isRoom(next)||this.activeDoor(next)===pos)}", "neighbors(pos){let out=this.physicalNeighbors(pos);if(isRoom(pos)&&pos!=='casino'){const door=this.activeDoor(pos);out=out.filter(x=>x===door)}else if(isFloor(pos)){out=out.filter(next=>!isRoom(next)||next==='casino'||this.activeDoor(next)===pos)}");
+          fs.writeFileSync(p,s);
+          NODE
+      - name: Commit patch
+        run: |
+          git config user.name "Full Tilt Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add worker.js
+          git commit -m "Correct room doors to reachable interior-facing thresholds"
+          git push
