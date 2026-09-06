@@ -1,15 +1,13 @@
-// Room View Engine — art-ready cinematic interiors without changing game position.
-// Add approved art paths here as they are committed. Missing assets never interrupt gameplay.
+// Room View Engine — approved Full Tilt Headquarters interiors.
+// Missing room art simply leaves the player on the HQ board until its final asset is added.
 const ROOM_ART={
-  // vault:'/art/rooms/vault.webp',
-  // control:'/art/rooms/control.webp',
-  // high:'/art/rooms/high-roller.webp',
-  // office:'/art/rooms/back-office.webp',
-  // after:'/art/rooms/afterhours.webp',
-  // workshop:'/art/rooms/workshop.webp',
-  // kitchen:'/art/rooms/kitchen.webp',
-  // back:'/art/rooms/back-room.webp',
-  // casino:'/art/rooms/casino-floor.webp'
+  vault:'/art/rooms/vault.PNG',
+  control:'/art/rooms/control-room.PNG',
+  high:'/art/rooms/high-roller-room.PNG',
+  office:'/art/rooms/back-office.PNG',
+  after:'/art/rooms/afterhours.PNG',
+  workshop:'/art/rooms/workshop.PNG',
+  kitchen:'/art/rooms/kitchen.PNG'
 };
 let roomViewOpen=false,roomViewRoom=null,roomViewLastPosition=null;
 
