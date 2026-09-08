@@ -1,0 +1,33 @@
+name: Restore and patch board rotation
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-board-rotation.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore known-good board and patch
+        run: |
+          git show 342be45e795f4e5882add6f330287888724e64cc:public/board-lab-tiles.html > public/board-lab-tiles.html
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html'); s=p.read_text()
+          s=s.replace(".room h3{position:absolute;left:9px;top:7px;margin:0;font-size:13px;letter-spacing:.06em;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap}",".room h3{position:absolute;left:50%;top:50%;margin:0;font-size:13px;letter-spacing:.06em;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap;translate:-50% -50%;z-index:12;padding:3px 6px;border-radius:5px;background:#08060ba8;text-align:center}",1)
+          s=s.replace("function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name').forEach(el=>el.style.transform='rotate('+counter+'deg)')}","function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name,.piece .art,.piece .base').forEach(el=>el.style.transform='rotate('+counter+'deg)')}",1)
+          s=s.replace(".piece .art{position:absolute;",".piece .art{transform-origin:50% 85%;transition:transform .45s ease;position:absolute;",1)
+          s=s.replace(".piece .base{position:absolute;",".piece .base{transform-origin:center;transition:transform .45s ease;position:absolute;",1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Restore board and rotate pieces with centered room labels"
+          git push
