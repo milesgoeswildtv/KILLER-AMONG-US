@@ -1,0 +1,35 @@
+name: Add Firestarter Piece To Board Lab
+on:
+  push:
+    paths:
+      - '.github/workflows/add-firestarter-piece.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch board prototype
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          s=s.replace('.piece .art{position:absolute;left:50%;bottom:9px;translate:-50%;width:34px;height:45px;border:2px solid #ef82ff;border-radius:10px;background:#151019;display:grid;place-items:center;font-size:23px;box-shadow:0 0 20px #d75cff}', '.piece .art{position:absolute;left:50%;bottom:9px;translate:-50%;width:34px;height:45px;border:2px solid #ef82ff;border-radius:10px;background:#151019;display:grid;place-items:center;font-size:23px;box-shadow:0 0 20px #d75cff}.piece.player-asset{width:64px;height:82px;transform:translate(-50%,-76%) translateZ(38px);filter:drop-shadow(0 12px 7px #000c)}.piece.player-asset .art{left:50%;bottom:5px;width:64px;height:72px;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}.piece.player-asset .art img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 8px #d75cff55)}.piece.player-asset .base{display:none}.piece.player-asset .name{bottom:-9px;border-color:#b780c1;color:#fff;background:#070509ee}')
+          old="const piece=document.createElement('div');piece.className='piece';piece.innerHTML='<div class=\"art\">🔥</div><div class=\"base\"></div><div class=\"name\">SAM</div>';board.appendChild(piece);"
+          new="const piece=document.createElement('div');piece.className='piece player-asset';piece.innerHTML='<div class=\"art\"><img src=\"/Game-Pieces/THE%20FIRESTARTER.PNG\" alt=\"Sam — The Firestarter game piece\"></div><div class=\"base\"></div><div class=\"name\">SAM</div>';board.appendChild(piece);"
+          if old not in s:
+              raise SystemExit('Sam placeholder signature not found; refusing unsafe patch')
+          s=s.replace(old,new)
+          s=s.replace('Room names and player nameplates counter-rotate so they stay readable while the board turns.','Sam now uses the actual THE FIRESTARTER game-piece asset. Room names and player nameplates stay readable while the board turns.')
+          p.write_text(s)
+          PY
+      - name: Commit prototype update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/board-lab-tiles.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Use Firestarter asset in 2.5D board prototype"
+          git push
