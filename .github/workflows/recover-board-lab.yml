@@ -1,0 +1,34 @@
+name: Recover board lab
+on:
+  push:
+    paths:
+      - '.github/workflows/recover-board-lab.yml'
+permissions:
+  contents: write
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore board lab and apply rotation/label fixes
+        run: |
+          git show 342be45e795f4e5882add6f330287888724e64cc:public/board-lab-tiles.html > public/board-lab-tiles.html
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          s=s.replace(".room h3{position:absolute;left:9px;top:7px;margin:0;font-size:13px;letter-spacing:.06em;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap}", ".room h3{position:absolute;left:50%;top:50%;margin:0;translate:-50% -50%;font-size:13px;letter-spacing:.06em;text-align:center;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap;background:#070509b8;border:1px solid #4a3650;border-radius:6px;padding:3px 6px;z-index:12}")
+          s=s.replace("function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name').forEach(el=>el.style.transform='rotate('+counter+'deg)')}", "function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name').forEach(el=>el.style.transform='rotate('+counter+'deg)');document.querySelectorAll('.piece .art,.piece .base').forEach(el=>el.style.transform='rotate('+counter+'deg)')}")
+          s=s.replace(".piece .art{position:absolute;left:50%;bottom:9px;translate:-50%;", ".piece .art{position:absolute;left:50%;bottom:9px;translate:-50%;transform-origin:50% 100%;transition:transform .45s ease;")
+          s=s.replace(".piece .base{position:absolute;left:8px;bottom:0;", ".piece .base{position:absolute;left:8px;bottom:0;transform-origin:center;transition:transform .45s ease;")
+          p.write_text(s)
+          PY
+      - name: Commit recovery
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Recover board lab and improve rotation readability" || exit 0
+          git push
