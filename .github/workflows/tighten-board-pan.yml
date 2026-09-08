@@ -1,0 +1,35 @@
+name: Tighten board pan
+on:
+  push:
+    paths:
+      - '.github/workflows/tighten-board-pan.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch mobile pan and tap handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          old="for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const k=key(x,y),r=roomAt(x,y),t=document.createElement('div');t.className='tile '+(r?(r.center?'casinofloor':'roomfloor'):'hall');grid.appendChild(t);tiles.set(k,t);cellType.set(k,r?.id||'hall');graph.set(k,new Set())}"
+          new="for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const k=key(x,y),r=roomAt(x,y),t=document.createElement('div');t.className='tile '+(r?(r.center?'casinofloor':'roomfloor'):'hall');t.dataset.cell=k;grid.appendChild(t);tiles.set(k,t);cellType.set(k,r?.id||'hall');graph.set(k,new Set())}"
+          if old not in s: raise SystemExit('tile snippet not found')
+          s=s.replace(old,new,1)
+          start=s.index("const stage=document.getElementById('stage'),world=document.getElementById('world');")
+          end=s.index("\nrebuildGraph();",start)
+          block="""const stage=document.getElementById('stage'),world=document.getElementById('world');let scale=.82,panX=-710,panY=-550,drag=false,dragMoved=false,activePointer=null,startX=0,startY=0,startPanX=0,startPanY=0;const PAN_PAD=72;function panLimits(){const cx=-world.offsetWidth/2,cy=-world.offsetHeight/2+15,ox=Math.max(0,(world.offsetWidth*scale-innerWidth)/2)+PAN_PAD,oy=Math.max(0,(world.offsetHeight*scale-innerHeight)/2)+PAN_PAD;return{minX:cx-ox,maxX:cx+ox,minY:cy-oy,maxY:cy+oy}}function clampPan(x,y){const b=panLimits();return{x:Math.max(b.minX,Math.min(b.maxX,x)),y:Math.max(b.minY,Math.min(b.maxY,y))}}function apply(){const c=clampPan(panX,panY);panX=c.x;panY=c.y;world.style.transform='translate3d('+panX+'px,'+panY+'px,0) scale('+scale+')'}function resetView(){scale=innerWidth<720?.48:.68;panX=-world.offsetWidth/2;panY=-world.offsetHeight/2+15;rotation=0;boardTransform();updateLabelRotation();compass.style.transform='rotate(0deg)';apply()}zoomIn.onclick=()=>{scale=Math.min(1.55,scale+.1);apply()};zoomOut.onclick=()=>{scale=Math.max(.42,scale-.1);apply()};reset.onclick=resetView;stage.onpointerdown=e=>{if(activePointer!==null)return;if(e.pointerType==='mouse'&&e.button!==0)return;activePointer=e.pointerId;drag=true;dragMoved=false;startX=e.clientX;startY=e.clientY;startPanX=panX;startPanY=panY;stage.classList.add('dragging');try{stage.setPointerCapture(e.pointerId)}catch(_){}};stage.onpointermove=e=>{if(!drag||e.pointerId!==activePointer)return;e.preventDefault();const dx=e.clientX-startX,dy=e.clientY-startY;if(!dragMoved&&Math.hypot(dx,dy)>3)dragMoved=true;const c=clampPan(startPanX+dx,startPanY+dy);panX=c.x;panY=c.y;apply()};const finishPointer=e=>{if(!drag||e.pointerId!==activePointer)return;const wasDrag=dragMoved;const x=e.clientX,y=e.clientY;drag=false;stage.classList.remove('dragging');try{if(stage.hasPointerCapture(e.pointerId))stage.releasePointerCapture(e.pointerId)}catch(_){}activePointer=null;if(!wasDrag){const hit=document.elementFromPoint(x,y)?.closest?.('.tile');if(hit?.dataset.cell)moveTo(hit.dataset.cell)}dragMoved=false};stage.onpointerup=finishPointer;stage.onpointercancel=e=>{if(e.pointerId!==activePointer)return;drag=false;dragMoved=false;activePointer=null;stage.classList.remove('dragging')};stage.onlostpointercapture=e=>{if(e.pointerId===activePointer){drag=false;dragMoved=false;activePointer=null;stage.classList.remove('dragging')}};stage.addEventListener('click',e=>{if(e.target.closest?.('.tile')){e.preventDefault();e.stopImmediatePropagation()}},true);stage.addEventListener('wheel',e=>{e.preventDefault();scale=Math.max(.42,Math.min(1.55,scale+(e.deltaY<0?.08:-.08)));apply()},{passive:false});"""
+          s=s[:start]+block+s[end:]
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Clamp board pan and speed up tile taps" || exit 0
+          git push
