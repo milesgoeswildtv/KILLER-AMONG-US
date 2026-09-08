@@ -1,0 +1,34 @@
+name: Board usability refinement
+on:
+  push:
+    paths:
+      - '.github/workflows/board-usability-pass.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve board feedback and mobile rendering
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          s=s.replace(".stage.dragging{cursor:grabbing}", ".stage.dragging{cursor:grabbing}.stage.dragging .tile{transition:none!important;box-shadow:none!important}.stage.dragging .table{box-shadow:none!important}.stage.dragging .room{box-shadow:none!important}.stage.dragging .piece{transition:none!important;filter:none!important}")
+          s=s.replace(".door.open{background:#dfbb70;box-shadow:0 0 13px #ffd782}.door.closed{background:#5b2630;box-shadow:0 0 8px #9b263d}", ".door.open{background:#dfbb70;box-shadow:0 0 13px #ffd782}.door.open:after{content:'';position:absolute;inset:-5px;border-radius:6px;border:1px solid #f5d89188}.door.closed{background:#5b2630;box-shadow:0 0 8px #9b263d}.door.closed:after{content:'×';position:absolute;left:50%;top:50%;translate:-50% -50%;color:#ff8d9a;font:bold 9px Arial;text-shadow:0 0 5px #000}")
+          s=s.replace(".passage.on{opacity:1;border-color:#d886f2;box-shadow:0 0 18px #d45aff;background:#381a43}", ".passage.on{opacity:1;border-color:#d886f2;box-shadow:0 0 18px #d45aff;background:#381a43;animation:passagePulse 1.7s ease-in-out infinite}@keyframes passagePulse{50%{box-shadow:0 0 28px #e379ff;transform:translate(-50%,-50%) translateZ(16px) scale(1.12)}}")
+          s=s.replace("function rotate(d){rotation=(rotation+d+360)%360;boardTransform();updateLabelRotation();compass.style.transform='rotate('+(-rotation)+'deg)'}", "function rotate(d){if(moving)return;rotation=(rotation+d+360)%360;boardTransform();updateLabelRotation();compass.style.transform='rotate('+(-rotation)+'deg)';setTimeout(()=>{place();placeTestPieces()},470)}")
+          s=s.replace("function doRoll(){if(moving)return;budget=1+Math.floor(Math.random()*6);", "function doRoll(){if(moving)return;budget=1+Math.floor(Math.random()*6);board.classList.add('rolled');setTimeout(()=>board.classList.remove('rolled'),260);")
+          s=s.replace(".grid{position:absolute;inset:24px;", ".board.rolled .grid{filter:brightness(1.22)}.grid{position:absolute;inset:24px;")
+          s=s.replace(".grid{position:absolute;inset:24px;display:grid;", ".grid{position:absolute;inset:24px;display:grid;transition:filter .22s ease;")
+          p.write_text(s)
+          PY
+      - name: Commit refinement
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Refine board feedback and mobile pan performance" || exit 0
+          git push
