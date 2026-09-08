@@ -1,0 +1,47 @@
+name: Scale 2.5D board lab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/scale-board-lab.yml'
+permissions:
+  contents: write
+jobs:
+  scale:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Expand HQ movement grid
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          s=s.replace('width:1160px;height:920px','width:1420px;height:1120px')
+          s=s.replace('left:100px;top:85px;width:960px;height:760px','left:110px;top:95px;width:1200px;height:930px')
+          s=s.replace('width:900px;height:700px','width:1140px;height:850px')
+          s=s.replace('grid-template-columns:repeat(21,1fr);grid-template-rows:repeat(17,1fr)','grid-template-columns:repeat(29,1fr);grid-template-rows:repeat(23,1fr)')
+          s=s.replace('const COLS=21,ROWS=17,VISION=6','const COLS=29,ROWS=23,VISION=6')
+          old="const roomDefs=[{id:'vault',name:'THE VAULT',x:1,y:1,w:5,h:4,physical:['e','s'],main:['e'],side:['s']},{id:'control',name:'CONTROL ROOM',x:8,y:1,w:5,h:4,physical:['w','e','s'],main:['s'],side:['w','e']},{id:'high',name:'HIGH ROLLER',x:15,y:1,w:5,h:4,physical:['w','s'],main:['s'],side:['w']},{id:'office',name:'BACK OFFICE',x:1,y:7,w:5,h:4,physical:['n','e','s'],main:['e'],side:['n','s']},{id:'casino',name:'CASINO FLOOR',x:8,y:7,w:5,h:4,physical:[],main:[],side:[],center:true},{id:'after',name:'AFTERHOURS',x:15,y:7,w:5,h:4,physical:['n','w','s'],main:['w'],side:['n','s']},{id:'workshop',name:'WORKSHOP',x:1,y:13,w:5,h:3,physical:['n','e'],main:['n'],side:['e']},{id:'kitchen',name:'KITCHEN',x:8,y:13,w:5,h:3,physical:['n','w','e'],main:['n'],side:['w','e']},{id:'back',name:'BACK ROOM',x:15,y:13,w:5,h:3,physical:['n','w'],main:['w'],side:['n']}];"
+          new="const roomDefs=[{id:'vault',name:'THE VAULT',x:1,y:1,w:6,h:5,physical:['e','s'],main:['e'],side:['s']},{id:'control',name:'CONTROL ROOM',x:12,y:1,w:6,h:5,physical:['w','e','s'],main:['s'],side:['w','e']},{id:'high',name:'HIGH ROLLER',x:23,y:1,w:5,h:5,physical:['w','s'],main:['s'],side:['w']},{id:'office',name:'BACK OFFICE',x:1,y:9,w:6,h:5,physical:['n','e','s'],main:['e'],side:['n','s']},{id:'casino',name:'CASINO FLOOR',x:12,y:9,w:6,h:5,physical:[],main:[],side:[],center:true},{id:'after',name:'AFTERHOURS',x:23,y:9,w:5,h:5,physical:['n','w','s'],main:['w'],side:['n','s']},{id:'workshop',name:'WORKSHOP',x:1,y:17,w:6,h:5,physical:['n','e'],main:['n'],side:['e']},{id:'kitchen',name:'KITCHEN',x:12,y:17,w:6,h:5,physical:['n','w','e'],main:['n'],side:['w','e']},{id:'back',name:'BACK ROOM',x:23,y:17,w:5,h:5,physical:['n','w'],main:['w'],side:['n']}];"
+          if old not in s: raise SystemExit('roomDefs signature not found; refusing unsafe patch')
+          s=s.replace(old,new)
+          s=s.replace("current=key(10,9)","current=key(15,11)")
+          s=s.replace("link(key(3,2),key(17,14));link(key(17,2),key(3,14))","link(key(4,3),key(25,19));link(key(25,3),key(4,19))")
+          s=s.replace("[['vault','3,2'],['back','17,14'],['high','17,2'],['workshop','3,14']]","[['vault','4,3'],['back','25,19'],['high','25,3'],['workshop','4,19']]")
+          s=s.replace("key(11,9),icon:'●'},{name:'DIST 3',cell:key(10,6),icon:'3'},{name:'DIST 5',cell:key(10,4),icon:'5'},{name:'DIST 6',cell:key(10,3),icon:'6'},{name:'BEHIND WALL',cell:key(9,4),icon:'×'},{name:'OUTSIDE 6',cell:key(10,2),icon:'7'","key(16,11),icon:'●'},{name:'DIST 3',cell:key(15,8),icon:'3'},{name:'DIST 5',cell:key(15,6),icon:'5'},{name:'DIST 6',cell:key(15,5),icon:'6'},{name:'BEHIND WALL',cell:key(14,5),icon:'×'},{name:'OUTSIDE 6',cell:key(15,4),icon:'7'")
+          s=s.replace("(x===6||x===7)&&y>=5&&y<=12:(x===13||x===14)&&y>=5&&y<=12","(x===8||x===9)&&y>=6&&y<=16:(x===20||x===21)&&y>=6&&y<=16")
+          s=s.replace('WALL-AWARE FOG · 6 SPACE AWARENESS · TEST PLAYERS','29×23 SCALE TEST · WALL-AWARE FOG · 6 SPACE AWARENESS')
+          s=s.replace('Sam now uses the actual THE FIRESTARTER game-piece asset. Room names and player nameplates stay readable while the board turns.','SCALE TEST: expanded to 29×23 with longer corridors and more meaningful d6 travel. Sam uses the actual THE FIRESTARTER piece.')
+          s=s.replace("panX=-580,panY=-450","panX=-710,panY=-550")
+          s=s.replace("scale=innerWidth<720?.62:.82","scale=innerWidth<720?.48:.68")
+          p.write_text(s)
+          PY
+      - name: Commit scaled prototype
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Scale HQ board lab to 29x23 movement grid"
+          git push
