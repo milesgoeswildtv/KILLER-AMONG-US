@@ -1,0 +1,40 @@
+name: Fix board rotation
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-board-rotation.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Restore board and patch rotation
+        run: |
+          git show HEAD^:public/board-lab-tiles.html > public/board-lab-tiles.html
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('public/board-lab-tiles.html')
+          s=p.read_text()
+          old=".room h3{position:absolute;left:9px;top:7px;margin:0;font-size:13px;letter-spacing:.06em;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap}"
+          new=".room h3{position:absolute;left:50%;top:50%;margin:0;font-size:13px;letter-spacing:.06em;text-shadow:0 2px 4px #000;transform-origin:center;transition:transform .45s ease;white-space:nowrap;translate:-50% -50%;z-index:12;padding:3px 6px;border-radius:5px;background:#08060ba8;text-align:center}"
+          if old not in s: raise SystemExit('room label css not found')
+          s=s.replace(old,new,1)
+          old2="function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name').forEach(el=>el.style.transform='rotate('+counter+'deg)')}"
+          new2="function updateLabelRotation(){const counter=-rotation;document.querySelectorAll('.room h3,.piece .name').forEach(el=>el.style.transform='rotate('+counter+'deg)');document.querySelectorAll('.piece .art,.piece .base').forEach(el=>el.style.transform='rotate('+counter+'deg)')}"
+          if old2 not in s: raise SystemExit('rotation function not found')
+          s=s.replace(old2,new2,1)
+          s=s.replace(".piece .art{position:absolute;", ".piece .art{transform-origin:50% 85%;transition:transform .45s ease;position:absolute;",1)
+          s=s.replace(".piece .base{position:absolute;", ".piece .base{transform-origin:center;transition:transform .45s ease;position:absolute;",1)
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/board-lab-tiles.html
+          git commit -m "Rotate game pieces and center room labels"
+          git push
