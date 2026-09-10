@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>KILLER AMONG US — Vault Layout Lab</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030303;color:#f3dfb0;font-family:Arial,sans-serif}body{position:fixed;inset:0}.app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(circle at 50% 48%,#231012 0,#090606 48%,#020202 100%)}
+.top{z-index:50;padding:max(8px,env(safe-area-inset-top)) 10px 8px;display:flex;gap:8px;align-items:stretch}.panel{background:#090606ed;border:1px solid #936d31;border-radius:10px;box-shadow:0 7px 20px #000}.brand{padding:8px 10px;min-width:160px;flex:1}.brand small{display:block;color:#75d7e5;font-size:8px;font-weight:800;letter-spacing:.18em}.brand b{font:900 18px Georgia}.brand span{color:#ce3543}.tools{padding:6px;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:390px}button{background:#17100d;color:#f1daa8;border:1px solid #8f682f;border-radius:7px;min-height:34px;padding:0 9px;font-weight:900}button.active{outline:2px solid #69d3e4;color:#bff5ff}.stage{position:relative;min-height:0;overflow:hidden;touch-action:none}.room{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);transform-origin:center;will-change:transform}.floorSvg{position:absolute;left:0;top:0;overflow:visible;filter:drop-shadow(0 28px 36px #000)}.prop{position:absolute;transform-origin:50% 100%;user-select:none;-webkit-user-drag:none;touch-action:none;cursor:grab;filter:drop-shadow(0 14px 12px #000b);will-change:left,top,width}.prop.selected{filter:drop-shadow(0 0 10px #6ce4ff) drop-shadow(0 14px 12px #000b)}.selectRing{position:absolute;width:26px;height:26px;border:3px solid #6ce4ff;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:9998;box-shadow:0 0 16px #6ce4ff}.bottom{z-index:60;padding:8px 10px max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.readout{padding:9px 10px;font-size:11px;line-height:1.4}.readout b{font-size:13px}.readout .cyan{color:#77dceb}.readout .gold{color:#e8bb65}.assetTools{padding:6px;display:grid;grid-template-columns:repeat(6,minmax(42px,1fr));gap:5px;min-width:min(480px,55vw)}.assetTools button{min-height:38px}.assetTools .wide{grid-column:span 2}.tip{color:#bca77b}.hidden{display:none!important}@media(max-width:720px){.top{align-items:flex-start}.brand{min-width:126px}.brand b{font-size:15px}.tools{max-width:260px}.tools button{font-size:11px;padding:0 7px;min-height:31px}.bottom{grid-template-columns:1fr}.assetTools{min-width:0;width:100%;grid-template-columns:repeat(6,1fr)}.readout{font-size:10px}.stage{min-height:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="panel brand"><small>ROOM LAYOUT LAB · VAULT ONLY · 6×5</small><b>KILLER <span>AMONG US</span></b></div>
+    <div class="panel tools"><button id="fit">FIT</button><button id="grid" class="active">GRID</button><button id="centers" class="active">CENTERS</button><button id="reset">RESET VAULT</button></div>
+  </div>
+  <div class="stage" id="stage"><div class="room" id="room"><svg class="floorSvg" id="floor"></svg><div class="selectRing hidden" id="ring"></div></div></div>
+  <div class="bottom">
+    <div class="panel readout" id="readout"><b>VAULT — PROPOSED LAYOUT V1</b><br><span class="cyan">Actual GitHub PNGs.</span> Drag an asset to move it. Tap one, then use SIZE − / + for calibration.<br><span class="tip">We stay on Vault until you approve it. E and S edge markers are the future physical room-door sides; walls are intentionally not added yet.</span></div>
+    <div class="panel assetTools"><button id="prev">◀ PROP</button><button id="next">PROP ▶</button><button id="smaller">SIZE −</button><button id="bigger">SIZE +</button><button id="back">SEND BACK</button><button id="front">BRING FRONT</button></div>
+  </div>
+</div>
+<script>
+const ROOM={w:6,h:5};
+const ROOT='/assets/board-ui/rooms/vault/';
+const ASSETS=[
+ {id:'door',file:'vault_main_door.PNG',label:'Main Vault Door',x:1.35,y:.78,w:1.62,bias:-40},
+ {id:'deposit',file:'vault_safe_deposit_wall.PNG',label:'Safe Deposit Wall',x:4.72,y:.86,w:2.34,bias:-35},
+ {id:'security',file:'vault_security_station.PNG',label:'Security Station',x:1.15,y:3.88,w:1.88,bias:15},
+ {id:'display',file:'vault_secure_display_table.PNG',label:'Secure Display Table',x:3.18,y:2.62,w:1.48,bias:20},
+ {id:'trolley',file:'vault_lockbox_trolley.PNG',label:'Lockbox Trolley',x:4.72,y:3.55,w:1.10,bias:30}
+];
+const ORIGINAL=JSON.parse(JSON.stringify(ASSETS));
+const stage=document.getElementById('stage'),room=document.getElementById('room'),floor=document.getElementById('floor'),ring=document.getElementById('ring'),readout=document.getElementById('readout');
+let TW=184,TH=92,selected=3,showGrid=true,showCenters=true,drag=null,scale=1;
+function P(x,y){return{x:(x-y)*TW/2,y:(x+y)*TH/2}}
+function bounds(){const ps=[P(0,0),P(ROOM.w,0),P(ROOM.w,ROOM.h),P(0,ROOM.h)];return{minX:Math.min(...ps.map(p=>p.x)),maxX:Math.max(...ps.map(p=>p.x)),minY:Math.min(...ps.map(p=>p.y)),maxY:Math.max(...ps.map(p=>p.y))}}
+function floorPoint(x,y,b){const p=P(x,y);return`${p.x-b.minX},${p.y-b.minY}`}
+function drawFloor(){const b=bounds(),W=b.maxX-b.minX,H=b.maxY-b.minY;floor.setAttribute('width',W);floor.setAttribute('height',H);floor.setAttribute('viewBox',`0 0 ${W} ${H}`);floor.style.left=b.minX+'px';floor.style.top=b.minY+'px';let s=`<defs><pattern id="marble" patternUnits="userSpaceOnUse" width="420" height="420"><image href="/assets/board-ui/floor-tiles/seamless_gray_marble_stone_texture.PNG" x="0" y="0" width="420" height="420" opacity=".76"/></pattern></defs>`;s+=`<polygon points="${floorPoint(0,0,b)} ${floorPoint(ROOM.w,0,b)} ${floorPoint(ROOM.w,ROOM.h,b)} ${floorPoint(0,ROOM.h,b)}" fill="url(#marble)" stroke="#c89943" stroke-width="5"/>`;
+ if(showGrid){for(let x=0;x<=ROOM.w;x++)s+=`<line x1="${P(x,0).x-b.minX}" y1="${P(x,0).y-b.minY}" x2="${P(x,ROOM.h).x-b.minX}" y2="${P(x,ROOM.h).y-b.minY}" stroke="#b78b4370" stroke-width="1.5"/>`;for(let y=0;y<=ROOM.h;y++)s+=`<line x1="${P(0,y).x-b.minX}" y1="${P(0,y).y-b.minY}" x2="${P(ROOM.w,y).x-b.minX}" y2="${P(ROOM.w,y).y-b.minY}" stroke="#b78b4370" stroke-width="1.5"/>`}
+ if(showCenters){for(let y=0;y<ROOM.h;y++)for(let x=0;x<ROOM.w;x++){const c=P(x+.5,y+.5);s+=`<circle cx="${c.x-b.minX}" cy="${c.y-b.minY}" r="4" fill="#61d9ec" opacity=".72"/>`}}
+ const e1=P(ROOM.w,1.9),e2=P(ROOM.w,3.1),s1=P(2.35,ROOM.h),s2=P(3.65,ROOM.h);s+=`<line x1="${e1.x-b.minX}" y1="${e1.y-b.minY}" x2="${e2.x-b.minX}" y2="${e2.y-b.minY}" stroke="#62e4f7" stroke-width="8"/><text x="${(e1.x+e2.x)/2-b.minX+18}" y="${(e1.y+e2.y)/2-b.minY}" fill="#9aeeff" font-size="18" font-weight="900">E</text>`;s+=`<line x1="${s1.x-b.minX}" y1="${s1.y-b.minY}" x2="${s2.x-b.minX}" y2="${s2.y-b.minY}" stroke="#62e4f7" stroke-width="8"/><text x="${(s1.x+s2.x)/2-b.minX}" y="${(s1.y+s2.y)/2-b.minY+24}" fill="#9aeeff" font-size="18" font-weight="900">S</text>`;floor.innerHTML=s}
+function fit(){const r=stage.getBoundingClientRect(),b=bounds(),W=b.maxX-b.minX,H=b.maxY-b.minY;scale=Math.min((r.width-38)/(W+300),(r.height-40)/(H+320),1.18);room.style.transform=`translate(-50%,-50%) scale(${scale})`}
+function propEl(a,i){let el=document.getElementById('p_'+a.id);if(!el){el=document.createElement('img');el.id='p_'+a.id;el.className='prop';el.src=ROOT+a.file;el.alt=a.label;el.draggable=false;el.dataset.i=i;el.addEventListener('pointerdown',down);room.appendChild(el)}const p=P(a.x,a.y);el.style.left=p.x+'px';el.style.top=p.y+'px';el.style.width=(a.w*TW)+'px';el.style.transform='translate(-50%,-92%)';el.style.zIndex=1000+Math.round((a.x+a.y)*40)+(a.bias||0);el.classList.toggle('selected',i===selected);}
+function render(){drawFloor();ASSETS.forEach(propEl);fit();updateSelection()}
+function updateSelection(){const a=ASSETS[selected],p=P(a.x,a.y);ring.classList.remove('hidden');ring.style.left=p.x+'px';ring.style.top=p.y+'px';ring.style.zIndex=9998;readout.innerHTML=`<b>VAULT — ${a.label}</b><br><span class="cyan">Position:</span> ${a.x.toFixed(2)}, ${a.y.toFixed(2)} tiles &nbsp; <span class="gold">Visual width:</span> ${a.w.toFixed(2)} tiles<br><span class="tip">Drag to reposition. SIZE −/+ changes this asset by 0.08 tile. We do not leave Vault until you approve the room.</span>`}
+function select(i){selected=(i+ASSETS.length)%ASSETS.length;render()}
+function down(e){e.preventDefault();const i=+e.currentTarget.dataset.i;selected=i;const a=ASSETS[i];drag={i,sx:e.clientX,sy:e.clientY,x:a.x,y:a.y};e.currentTarget.setPointerCapture?.(e.pointerId);render()}
+window.addEventListener('pointermove',e=>{if(!drag)return;const a=ASSETS[drag.i],dx=(e.clientX-drag.sx)/scale,dy=(e.clientY-drag.sy)/scale;let tx=drag.x+dx/TW+dy/TH,ty=drag.y+dy/TH-dx/TW;a.x=Math.max(.25,Math.min(ROOM.w-.25,tx));a.y=Math.max(.25,Math.min(ROOM.h-.25,ty));render()});window.addEventListener('pointerup',()=>drag=null);
+function size(d){ASSETS[selected].w=Math.max(.45,Math.min(3.2,ASSETS[selected].w+d));render()}function bias(d){ASSETS[selected].bias=(ASSETS[selected].bias||0)+d;render()}
+document.getElementById('prev').onclick=()=>select(selected-1);document.getElementById('next').onclick=()=>select(selected+1);document.getElementById('smaller').onclick=()=>size(-.08);document.getElementById('bigger').onclick=()=>size(.08);document.getElementById('back').onclick=()=>bias(-60);document.getElementById('front').onclick=()=>bias(60);document.getElementById('fit').onclick=fit;document.getElementById('grid').onclick=e=>{showGrid=!showGrid;e.currentTarget.classList.toggle('active',showGrid);render()};document.getElementById('centers').onclick=e=>{showCenters=!showCenters;e.currentTarget.classList.toggle('active',showCenters);render()};document.getElementById('reset').onclick=()=>{ASSETS.splice(0,ASSETS.length,...JSON.parse(JSON.stringify(ORIGINAL)));selected=3;render()};
+window.addEventListener('resize',render);render();
+</script>
+</body>
+</html>
